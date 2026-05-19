@@ -1,10 +1,15 @@
 # Sparse Variational Student-t Processes (SVTP)
 
 [![AAAI 2024](https://img.shields.io/badge/AAAI-2024-blue)](https://ojs.aaai.org/index.php/AAAI/article/view/29547)
+[![TNNLS 2026](https://img.shields.io/badge/IEEE%20TNNLS-2026-blue)](https://doi.org/10.1109/TNNLS.2026.3673350)
 [![DOI](https://img.shields.io/badge/DOI-10.1609%2Faaai.v38i14.29547-orange)](https://doi.org/10.1609/aaai.v38i14.29547)
 
-Official implementation of the **AAAI 2024** paper *"Sparse Variational
-Student-t Processes"* (SVTP).
+Official implementation of:
+
+- **AAAI 2024**: *"Sparse Variational Student-t Processes"* (SVTP)
+- **IEEE TNNLS 2026**: *"Sparse Variational Student-t Processes for
+  Heavy-Tailed Modeling"* — journal extension with closed-form Fisher
+  information ("beta link") for natural-gradient optimisation.
 
 SVTP extends the sparse-inducing-point framework of SVGP to Student-t
 processes, giving heavier tails in both the prior and the likelihood. This
@@ -51,12 +56,29 @@ $$
 
 ```
 .
-└── svtp.py        Single-file implementation: SVGP baseline + SVTP-MC + UCI bench
+├── svtp.py            SVGP baseline + SVTP-MC + UCI benchmark (AAAI 2024)
+└── svtp_natgrad.py    SVTP with natural-gradient learning (TNNLS 2026)
 ```
 
-The script self-contains the kernel, the variational posteriors for both
-models, and the full benchmark across Yacht / Energy / Boston with optional
+`svtp.py` self-contains the kernel, the variational posteriors for SVGP and
+SVTP-MC, and the full benchmark across Yacht / Energy / Boston with optional
 outlier injection.
+
+`svtp_natgrad.py` reuses the same backbone with a *diagonal* variational
+covariance $S = \mathrm{diag}(\sigma_1^2, \dots, \sigma_M^2)$ and implements
+the closed-form Fisher information matrix from the TNNLS extension. The
+variational mean $\mathbf m$ is updated by
+
+$$
+\mathbf m \leftarrow \mathbf m - \eta_{\mathrm{nat}} \cdot (F^{\mathbf m})^{-1}\,\nabla_{\mathbf m}\mathcal L
+$$
+
+with $F^{\mathbf m}_{ii} = \frac{1}{M\sigma_i^2}\cdot\frac{\tilde\nu+M}{\tilde\nu-2}\cdot\frac{B((M{+}3)/2,(\tilde\nu{+}1)/2)}{B(M/2,\tilde\nu/2)}$ from Eq. 36
+of the paper, and the remaining parameters stay on Adam. The Sherman–Morrison
+form of $F^{\log S}$ (Eqs. 39 + 40) is also provided as
+`fisher_logS_inv_coefs` for reference, but in our reproduction it
+under-performs Adam on `log_sigma`, so the shipped recipe is **NatGrad on
+$\mathbf m$ + Adam on the rest**.
 
 ---
 
@@ -73,11 +95,15 @@ pip install torch numpy scikit-learn
 ## Quick start
 
 ```bash
+# AAAI 2024 SVTP-MC vs SVGP baseline
 python svtp.py
+
+# TNNLS 2026 natural-gradient variant vs SVTP-MC (Adam)
+python svtp_natgrad.py
 ```
 
-This runs all 3 UCI datasets × {clean, outlier 5%(±5σ)} × {SVGP, SVTP-MC} × 3
-seeds and prints a summary table at the end.
+Each script runs all 3 UCI datasets × {clean, outlier 5%(±5σ)} × 3 seeds and
+prints a summary table at the end.
 
 To shorten a smoke run:
 
@@ -114,6 +140,15 @@ python svtp.py --n_iter 500
   number    = {14},
   pages     = {16156--16163},
   year      = {2024}
+}
+
+@ARTICLE{11441992,
+  author  = {Xu, Jian and Zeng, Delu and Paisley, John},
+  journal = {IEEE Transactions on Neural Networks and Learning Systems},
+  title   = {Sparse Variational Student-t Processes for Heavy-Tailed Modeling},
+  year    = {2026},
+  pages   = {1-14},
+  doi     = {10.1109/TNNLS.2026.3673350}
 }
 ```
 
